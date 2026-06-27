@@ -1,4 +1,7 @@
 use sysinfo::{System, Components};
+use reqwest::blocking::Client;
+use serde_json::json;
+use std::env;
 
 const BYTES_IN_GIGABYTES: f64 = 1024.0 * 1024.0 * 1024.0;
 
@@ -30,33 +33,51 @@ fn system_info() -> String {
     let swap_used: f64 = (sys.used_swap() as f64) / BYTES_IN_GIGABYTES;
 
     // temperature
-    let mut temperature_cpu = String::new();
+    let mut temperature_all = String::new();
     for component in &components {
-        if let Some(temperature) = component.temperature()  {
-            temperature_cpu = temperature.to_string();
-        } else {
-            temperature_cpu = "unknow".to_string();
+        let name = component.label();
+        let temp = component.temperature().unwrap_or(0.0);
+
+        if temp == 0.0 {
+            continue;
         }
+
+        let temp_info = format!("{:<18} {:.1} °C\n", name, temp);
+        temperature_all.push_str(&temp_info);
     }
 
     let relatory = format!("
-        Telemetry script:
+Telemetry script:
 
-        ┌ Software ─┐
-        │hostname   │   {hostname}
-        │system            {system}
-        │kernel         {kernel_version}
+┌ Software ┐
+│hostname  │   {hostname}
+│          │
+│system    │   {system}
+│kernel    │   {kernel_version}
+└──────────┘
 
-        Hardware:
-        cpu usage         {cpu_usage:.2} 
-        ram usage         {ram_used:.2}/{ram_total:.2}GB
-        swap usage        {swap_used:.2}/{swap_total:.2}GB
-        temperature       {temperature_cpu} °C
-        ");
+┌ Hardware ──┐
+│cpu usage   │   {cpu_usage:.2} 
+│ram usage   │   {ram_used:.2}/{ram_total:.2}GB
+│swap usage  │   {swap_used:.2}/{swap_total:.2}GB
+└────────────┘
+
+temperature
+
+{temperature_all}");
 
         return relatory;
 }
 
 fn telemetric_send(relatory: &str) {
-    println!("{relatory}")
+    let client = Client::new();
+
+    dotenvy::dotenv().expect("could not load .env");
+    let webhook_url = env::var("WEBHOOK")
+        .expect("no url found");
+
+    client.post(webhook_url)
+        .json(&json!({"content": relatory.trim() }))
+        .send()
+        .expect("error send mensage");
 }
