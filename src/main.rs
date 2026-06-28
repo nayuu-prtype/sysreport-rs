@@ -21,6 +21,7 @@ fn system_info() -> String {
     let disks = Disks::new_with_refreshed_list();
     let components = Components::new_with_refreshed_list();
     let networks = Networks::new_with_refreshed_list();
+    let load_avg = System::load_average();
     sys.refresh_all();
 
     // system
@@ -28,8 +29,24 @@ fn system_info() -> String {
     let system = System::name().unwrap_or("failed".to_string());
     let kernel_version = System::kernel_version().unwrap_or("failed".to_string());
 
+    // uptime
+    let mut up: f64 = (System::uptime() as f64) / 60.0;
+    let mut uptime = String::new();
+    if up < 60.0 {
+        uptime = format!("{up:.1}m");
+    } else if up < 1440.0 {
+        up = up / 60.0;
+        uptime = format!("{up:.1}h");
+    } else {
+        up = up / 60.0 / 24.0;
+        uptime = format!("{up:.1}d");
+    }
+
     // cpu usage
     let cpu_usage = sys.global_cpu_usage();
+    let cpu_avg_one = load_avg.one;
+    let cpu_avg_five = load_avg.five;
+    let cpu_avg_fifteen = load_avg.fifteen;
 
     // ram usage 
     let ram_total: f64 = (sys.total_memory() as f64) / BYTES_IN_GIGABYTES;
@@ -92,13 +109,19 @@ fn system_info() -> String {
             │          │
             │system    │   {system}
             │kernel    │   {kernel}
+            │uptime    │   {uptime}
             └──────────┘
 
-            ┌ Hardware ──┐
-            │cpu usage   │   {cpu:.2}%
-            │ram usage   │   {ram_u:.1}/{ram_t:.1}GB
-            │swap usage  │   {swap_u:.1}/{swap_t:.1}GB
-            └────────────┘
+            ┌ Hardware ──────┐
+            │cpu usage       │   {cpu:.2}%
+            │                │
+            │cpu avg one     │   {cpu_avg_one:.2}%
+            │cpu avg five    │   {cpu_avg_five:.2}%
+            │cpu avg fifteen │   {cpu_avg_fifteen:.2}%
+            │                │
+            │ram usage       │   {ram_u:.1}/{ram_t:.1}GB
+            │swap usage      │   {swap_u:.1}/{swap_t:.1}GB
+            └────────────────┘
 
             Networks
             {network}
@@ -111,7 +134,11 @@ fn system_info() -> String {
         hostname = hostname,
         system = system,
         kernel = kernel_version,
+        uptime = uptime,
         cpu = cpu_usage,
+        cpu_avg_one = cpu_avg_one,
+        cpu_avg_five = cpu_avg_five,
+        cpu_avg_fifteen = cpu_avg_fifteen,
         ram_u = ram_used,
         ram_t = ram_total,
         swap_u = swap_used,
