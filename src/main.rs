@@ -22,28 +22,32 @@ fn system_info() -> String {
     let components = Components::new_with_refreshed_list();
     let networks = Networks::new_with_refreshed_list();
     let load_avg = System::load_average();
-    sys.refresh_all();
+    sys.refresh_cpu_all();
+    sys.refresh_memory();
 
     // system
-    let hostname = System::host_name().unwrap_or("failed".to_string());
-    let system = System::name().unwrap_or("failed".to_string());
-    let kernel_version = System::kernel_version().unwrap_or("failed".to_string());
+    let hostname = System::host_name().unwrap_or_else(|| "failed".to_string());
+    let system = System::name().unwrap_or_else(|| "failed".to_string());
+    let kernel_version = System::kernel_version().unwrap_or_else(|| "failed".to_string());
 
     // uptime
     let mut up: f64 = (System::uptime() as f64) / 60.0;
-    let mut uptime = String::new();
-    if up < 60.0 {
-        uptime = format!("{up:.1}m");
+    let uptime = if up < 60.0 {
+        format!("{up:.1}min")
     } else if up < 1440.0 {
-        up = up / 60.0;
-        uptime = format!("{up:.1}h");
-    } else {
+        up /= 60.0;
+        format!("{up:.1}h")
+    } else if up < 43200.0 {
         up = up / 60.0 / 24.0;
-        uptime = format!("{up:.1}d");
-    }
+        format!("{up:.1}d")
+    } else {
+        up = up / 60.0 / 24.0 / 30.0;
+        format!("{up:.1}mo")
+    };
 
     // cpu usage
     let cpu_usage = sys.global_cpu_usage();
+    let cpu_number = sys.cpus().len();
     let cpu_avg_one = load_avg.one;
     let cpu_avg_five = load_avg.five;
     let cpu_avg_fifteen = load_avg.fifteen;
@@ -71,15 +75,28 @@ fn system_info() -> String {
     // network
     let mut network_info = String::new();
     for (interface_name, data) in &networks {
-        let interface = interface_name;
-        let data_up: f64 = (data.total_received() as f64) / BYTES_IN_MEGABYTES;
-        let data_down = (data.total_transmitted() as f64) / BYTES_IN_MEGABYTES;
+        let interface = format!("network: {}", interface_name);
 
-        if data_up == 0.0 || data_down == 0.0 {
+        let dataup: f64 = (data.total_transmitted() as f64) / BYTES_IN_MEGABYTES;
+        let datado: f64 = (data.total_received() as f64) / BYTES_IN_MEGABYTES;
+
+        if dataup < 0.01 && datado < 0.01 {
             continue;
         };
 
-        let data_format = format!("\nnetwork: {interface}\ndata down: {data_down:.2}MB\ndata up: {data_up:.2}MB\n");
+        let data_up = if dataup < 1024.0 {
+            format!("data: {dataup:.2}MB (up)")
+        } else {
+            format!("data: {:.2}GB (up)", dataup / 1024.0)
+        };
+
+        let data_down = if datado < 1024.0 {
+            format!("data: {datado:.2}MB (down)")
+        } else {
+            format!("data: {:.2}GB (down)", datado / 1024.0)
+        };
+
+        let data_format = format!("\n{interface}\n{data_down}\n{data_up}\n");
         network_info.push_str(&data_format);
     }
 
@@ -95,7 +112,7 @@ fn system_info() -> String {
         let disk_space_available: f64 = (disk.available_space() as f64) / BYTES_IN_GIGABYTES;
         let disk_space_used: f64 = disk_space_total - disk_space_available;
 
-        let disk_space = format!("{disk_space_used:.2?}/{disk_space_total:.2?}GB, avaible: {disk_space_available:.2?}GB");
+        let disk_space = format!("{disk_space_used:.2?}/{disk_space_total:.2?}GB, available: {disk_space_available:.2?}GB");
         let disk_format = format!("\nname: {disk_name:?}\ndisk: {disk_space}\nformat: {disk_format:?}\nmount: {disk_mount:?}\ntype: {disk_type:?}\n");
         disks_info.push_str(&disk_format);
     }
@@ -113,14 +130,14 @@ fn system_info() -> String {
             └──────────┘
 
             ┌ Hardware ──────┐
-            │cpu usage       │   {cpu:.2}%
+            │cpu usage       │   {cpu:.2}% CPU usage
             │                │
-            │cpu avg one     │   {cpu_avg_one:.2}%
-            │cpu avg five    │   {cpu_avg_five:.2}%
-            │cpu avg fifteen │   {cpu_avg_fifteen:.2}%
+            │cpu avg one     │   {cpu_avg_one:.1}/{cpu_u} CPUs
+            │cpu avg five    │   {cpu_avg_five:.1}/{cpu_u} CPUs
+            │cpu avg fifteen │   {cpu_avg_fifteen:.1}/{cpu_u} CPUs
             │                │
-            │ram usage       │   {ram_u:.1}/{ram_t:.1}GB
-            │swap usage      │   {swap_u:.1}/{swap_t:.1}GB
+            │ram usage       │   {ram_u:.1}/{ram_t:.1}GB RAM
+            │swap usage      │   {swap_u:.1}/{swap_t:.1}GB RAM
             └────────────────┘
 
             Networks
@@ -136,6 +153,7 @@ fn system_info() -> String {
         kernel = kernel_version,
         uptime = uptime,
         cpu = cpu_usage,
+        cpu_u = cpu_number,
         cpu_avg_one = cpu_avg_one,
         cpu_avg_five = cpu_avg_five,
         cpu_avg_fifteen = cpu_avg_fifteen,
@@ -148,7 +166,7 @@ fn system_info() -> String {
         disks = disks_info
     );
 
-    return report;
+    report
 }
 
 fn telemetric_send(report: &str) {
