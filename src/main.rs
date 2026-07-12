@@ -22,6 +22,8 @@ fn system_info() -> String {
     let components = Components::new_with_refreshed_list();
     let networks = Networks::new_with_refreshed_list();
     let load_avg = System::load_average();
+
+    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
     sys.refresh_cpu_all();
     sys.refresh_memory();
 
@@ -180,4 +182,6 @@ fn telemetric_send(report: &str) {
         .json(&json!({"content": report.trim() }))
         .send()
         .expect("error send mensage");
+
+    print!("finalizing the script");
 }
