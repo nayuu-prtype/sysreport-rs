@@ -174,7 +174,7 @@ fn system_info() -> String {
 fn telemetric_send(report: &str) {
     let client = Client::new();
 
-    dotenvy::dotenv().expect("could not load .env");
+    dotenvy::dotenv().ok();
     let webhook_url = env::var("WEBHOOK")
         .expect("no url found");
 
