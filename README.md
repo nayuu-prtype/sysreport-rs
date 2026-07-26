@@ -7,9 +7,8 @@ Sysreport é um utilitário de linha de comando escrito em rust que coleta as in
 
 ## requisitos
 - Git
-- Rustc
-- Cargo
-- Webhook
+- Rustc & Cargo
+- Discord Webhook
 
 ## instalando sysreport
 
@@ -19,12 +18,12 @@ git clone git@github.com:nayuu-prtype/sysreport-rs
 cd sysreport-rs/
 ```
 
-mude o nome do .env.example para .env
+copie o .env.example para .env
 ```bash
-mv .env.example .env
+cp .env.example .env
 ```
 
-com o seu editor preferido coloque seu webhook na variável WEBHOOK=https://discord.com/api/webhooks/sua_url_aqui
+com o seu editor preferido altere a .env e coloque seu webhook na variável WEBHOOK=<sua url>
 ```bash
 nvim .env
 ```
