@@ -24,7 +24,7 @@ mude o nome do .env.example para .env
 mv .env.example .env
 ```
 
-com o seu editor preferido coloque seu webhook na variável WEVHOOK=https://discord.com/api/webhooks/sua_url_aqui
+com o seu editor preferido coloque seu webhook na variável WEBHOOK=https://discord.com/api/webhooks/sua_url_aqui
 ```bash
 nvim .env
 ```
