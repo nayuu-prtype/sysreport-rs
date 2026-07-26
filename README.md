@@ -36,7 +36,7 @@ cargo run
 para compilar a versão final otimizada:
 ```bash
 cargo build --release
-# o bínario final gerado estará em .target/release/sysreport
+# o bínario final gerado estará em target/release/sysreport
 ```
 
 exemplo de saída:
