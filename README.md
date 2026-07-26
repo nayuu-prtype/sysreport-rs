@@ -23,7 +23,7 @@ copie o .env.example para .env
 cp .env.example .env
 ```
 
-com o seu editor preferido altere a .env e coloque seu webhook na variável WEBHOOK="<sua url>"
+com o seu editor preferido altere a .env e coloque seu webhook na variável WEBHOOK=SUA_URL_AQUI
 ```bash
 nvim .env
 ```
