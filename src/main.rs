@@ -1,21 +1,20 @@
-use sysinfo::{Components, Disks, Networks, System};
+use indoc::indoc;
 use reqwest::blocking::Client;
 use serde_json::json;
-use indoc::indoc;
 use std::env;
+use sysinfo::{Components, Disks, Networks, System};
 
 const BYTES_IN_GIGABYTES: f64 = 1024.0 * 1024.0 * 1024.0;
 const BYTES_IN_MEGABYTES: f64 = 1024.0 * 1024.0;
 
 fn main() {
-    println!("telemetric script initialized");
+    println!("Sysreport initialized");
 
     let report = system_info();
     telemetric_send(&report);
 }
 
 fn system_info() -> String {
-
     // refresh system
     let mut sys = System::new_all();
     let disks = Disks::new_with_refreshed_list();
@@ -54,7 +53,7 @@ fn system_info() -> String {
     let cpu_avg_five = load_avg.five;
     let cpu_avg_fifteen = load_avg.fifteen;
 
-    // ram usage 
+    // ram usage
     let ram_total: f64 = (sys.total_memory() as f64) / BYTES_IN_GIGABYTES;
     let ram_used: f64 = (sys.used_memory() as f64) / BYTES_IN_GIGABYTES;
     let swap_total: f64 = (sys.total_swap() as f64) / BYTES_IN_GIGABYTES;
@@ -87,18 +86,18 @@ fn system_info() -> String {
         };
 
         let data_up = if dataup < 1024.0 {
-            format!("data: {dataup:.2}MB (up)")
+            format!("data: {:.2}MB (up)", dataup)
         } else {
             format!("data: {:.2}GB (up)", dataup / 1024.0)
         };
 
         let data_down = if datado < 1024.0 {
-            format!("data: {datado:.2}MB (down)")
+            format!("data: {:.2}MB (down)", datado)
         } else {
             format!("data: {:.2}GB (down)", datado / 1024.0)
         };
 
-        let data_format = format!("\n{interface}\n{data_down}\n{data_up}\n");
+        let data_format = format!("\n{}\n{}\n{}\n", interface, data_down, data_up);
         network_info.push_str(&data_format);
     }
 
@@ -114,58 +113,63 @@ fn system_info() -> String {
         let disk_space_available: f64 = (disk.available_space() as f64) / BYTES_IN_GIGABYTES;
         let disk_space_used: f64 = disk_space_total - disk_space_available;
 
-        let disk_space = format!("{disk_space_used:.2?}/{disk_space_total:.2?}GB, available: {disk_space_available:.2?}GB");
-        let disk_format = format!("\nname: {disk_name:?}\ndisk: {disk_space}\nformat: {disk_format:?}\nmount: {disk_mount:?}\ntype: {disk_type:?}\n");
+        let disk_space = format!(
+            "{disk_space_used:.2?}/{disk_space_total:.2?}GB, available: {disk_space_available:.2?}GB"
+        );
+        let disk_format = format!(
+            "\nname: {disk_name:?}\ndisk: {disk_space}\nformat: {disk_format:?}\nmount: {disk_mount:?}\ntype: {disk_type:?}\n"
+        );
         disks_info.push_str(&disk_format);
     }
 
     let report = format!(
         indoc! {"```
-            Telemetry script:
+            Sysreport:
 
             ┌ Software ┐
-            │hostname  │   {hostname}
+            │hostname  │   {}
             │          │
-            │system    │   {system}
-            │kernel    │   {kernel}
-            │uptime    │   {uptime}
+            │system    │   {}
+            │kernel    │   {}
+            │uptime    │   {}
             └──────────┘
 
             ┌ Hardware ──────┐
-            │cpu usage       │   {cpu:.2}% CPU usage
+            │cpu usage       │   {:.2}% CPU usage
             │                │
-            │cpu avg one     │   {cpu_avg_one:.1}/{cpu_u} CPUs
-            │cpu avg five    │   {cpu_avg_five:.1}/{cpu_u} CPUs
-            │cpu avg fifteen │   {cpu_avg_fifteen:.1}/{cpu_u} CPUs
+            │cpu avg one     │   {:.1}/{} CPUs
+            │cpu avg five    │   {:.1}/{} CPUs
+            │cpu avg fifteen │   {:.1}/{} CPUs
             │                │
-            │ram usage       │   {ram_u:.1}/{ram_t:.1}GB RAM
-            │swap usage      │   {swap_u:.1}/{swap_t:.1}GB RAM
+            │ram usage       │   {:.1}/{:.1}GB RAM
+            │swap usage      │   {:.1}/{:.1}GB RAM
             └────────────────┘
 
             Networks
-            {network}
+            {}
             Disks
-            {disks}
+            {}
             Temperature
-            {temperature}```"
+            {}```"
         },
-
-        hostname = hostname,
-        system = system,
-        kernel = kernel_version,
-        uptime = uptime,
-        cpu = cpu_usage,
-        cpu_u = cpu_number,
-        cpu_avg_one = cpu_avg_one,
-        cpu_avg_five = cpu_avg_five,
-        cpu_avg_fifteen = cpu_avg_fifteen,
-        ram_u = ram_used,
-        ram_t = ram_total,
-        swap_u = swap_used,
-        swap_t = swap_total,
-        temperature = temperature_info,
-        network = network_info,
-        disks = disks_info
+        hostname,
+        system,
+        kernel_version,
+        uptime,
+        cpu_usage,
+        cpu_avg_one,
+        cpu_number,
+        cpu_avg_five,
+        cpu_number,
+        cpu_avg_fifteen,
+        cpu_number,
+        ram_used,
+        ram_total,
+        swap_used,
+        swap_total,
+        network_info,
+        disks_info,
+        temperature_info
     );
 
     report
@@ -175,13 +179,13 @@ fn telemetric_send(report: &str) {
     let client = Client::new();
 
     dotenvy::dotenv().ok();
-    let webhook_url = env::var("WEBHOOK")
-        .expect("no url found");
+    let webhook_url = env::var("WEBHOOK").expect("no url found");
 
-    client.post(webhook_url)
+    client
+        .post(webhook_url)
         .json(&json!({"content": report.trim() }))
         .send()
         .expect("error send mensage");
 
-    print!("finalizing the script");
+    print!("finalizing sysreport");
 }
